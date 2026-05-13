@@ -11,7 +11,18 @@
             <tr>
                 <td>Condition</td>
                 <td>
-                    <select name="condition" id="condition">
+                    <select name="condition" id="condition" 
+                     onchange="
+                        if(this.value === 'simply-supported'){
+                            document.getElementById('w').value = 7;
+                            document.getElementById('primarySpan').value = 4;
+                            document.getElementById('secondarySpan').value = 0;
+                        } else {
+                            document.getElementById('w').value = 5;
+                            document.getElementById('primarySpan').value = 4;
+                            document.getElementById('secondarySpan').value = 6;
+                        }
+                    ">
                         <option value="simply-supported">Simply Supported</option>
                         <option value="two-span-unequal">Two Span Unequal</option>
                     </select>
@@ -19,7 +30,7 @@
             </tr>
             <tr>
                 <td>Load Force (w)</td>
-                <td><input type="text" id="w"> kN/m</td>
+                <td><input type="text" id="w" value="7"> kN/m</td>
             </tr>
             <tr>
                 <td>Primary Span (L1)</td>
@@ -27,7 +38,7 @@
             </tr>
             <tr>
                 <td>Secondary Span (L2)</td>
-                <td><input type="text" id="secondarySpan" value=""> m</td>
+                <td><input type="text" id="secondarySpan" value="0"> m</td>
             </tr>
             <tr>
                 <td colspan="2"><hr></td>
@@ -72,12 +83,16 @@
         function stringVal(id) {
             return document.getElementById(id).value;
         }
-
+        var conditionSelect;
+        document.getElementById('condition').addEventListener('change', function(e) {
+            conditionSelect = e.target.value;
+        });
         document.getElementById('calculate').addEventListener('click', function(e) {
             var beam = new Beam();
 
             beam.primarySpan    = floatVal('primarySpan');
             beam.secondarySpan  = floatVal('secondarySpan');
+            beam.j2 = floatVal('j2');
             beam.material       = new Material('No Name', {
                 EI : floatVal('EI')
             });
@@ -90,8 +105,79 @@
 
             var beamAnalysis        = new BeamAnalysis();
             var deflectionData      = beamAnalysis.getDeflection(beam, floatVal('w'), stringVal('condition'));
+            if(conditionSelect === 'simply-supported') {
+                deflectionData.title = 'Deflection Plot';
+                deflectionData.xLabel = 'Span (m)';
+                deflectionData.yLabel = 'Deflection (mm)';
+                deflectionData.yGridStep = 1;
+                deflectionData.yLabelStep = 1;
+                deflectionData.yDecimal = 1;
+                deflectionData.xGridStep = 0.5;
+                deflectionData.xLabelStep = 0.5;
+                deflectionData.xDecimal = 1;
+                deflectionData.yPadding = true;
+            } else {
+                deflectionData.title = 'Deflection Plot';
+                deflectionData.xLabel = 'Span (m)';
+                deflectionData.yLabel = 'Deflection (mm)';
+                deflectionData.yGridStep = 2;
+                deflectionData.yLabelStep = 1;
+                deflectionData.yDecimal = 1;
+                deflectionData.xGridStep = 1;
+                deflectionData.xLabelStep = 1;
+                deflectionData.xDecimal = 1;
+                deflectionData.yPadding = false;
+            }
+            
             var bendingMomentData   = beamAnalysis.getBendingMoment(beam, floatVal('w'), stringVal('condition'));
+            if(conditionSelect === 'simply-supported') {
+                bendingMomentData.title = 'Bending Moment Plot';
+                bendingMomentData.xLabel = 'Span (m)';
+                bendingMomentData.yLabel = 'Bending Moment (kNm)';
+                bendingMomentData.yGridStep = 2;
+                bendingMomentData.yLabelStep = 1;
+                bendingMomentData.yDecimal = 1;
+                bendingMomentData.xDecimal = 1;
+                bendingMomentData.xGridStep = 0.5;
+                bendingMomentData.xLabelStep = 0.5;
+                bendingMomentData.yPadding = true;
+            } else {
+                bendingMomentData.title = 'Bending Moment Plot';
+                bendingMomentData.xLabel = 'Span (m)';
+                bendingMomentData.yLabel = 'Bending Moment (kNm)';
+                bendingMomentData.yGridStep = 2;
+                bendingMomentData.yLabelStep = 1;
+                bendingMomentData.yDecimal = 1;
+                bendingMomentData.xDecimal = 1;
+                bendingMomentData.xGridStep = 1;
+                bendingMomentData.xLabelStep = 1;
+                bendingMomentData.yPadding = true;
+            }
+
             var shearForceData      = beamAnalysis.getShearForce(beam, floatVal('w'), stringVal('condition'));
+            if(conditionSelect === 'simply-supported') {
+                shearForceData.title = 'Shear Force Plot';
+                shearForceData.xLabel = 'Span (m)';
+                shearForceData.yLabel = 'Shear Force (kN)';
+                shearForceData.yGridStep = 5;
+                shearForceData.yLabelStep = 1;
+                shearForceData.yDecimal = 1;
+                shearForceData.xDecimal = 1;
+                shearForceData.xGridStep = 0.5;
+                shearForceData.xLabelStep = 0.5;
+                shearForceData.yPadding = false;
+            } else {
+                shearForceData.title = 'Shear Force Plot';
+                shearForceData.xLabel = 'Span (m)';
+                shearForceData.yLabel = 'Shear Force (kN)';
+                shearForceData.yGridStep = 5;
+                shearForceData.yLabelStep = 1;
+                shearForceData.yDecimal = 1;
+                shearForceData.xDecimal = 1;
+                shearForceData.xGridStep = 1;
+                shearForceData.xLabelStep = 1;
+                shearForceData.yPadding = false;
+            }
 
             plotter.deflection.plot(deflectionData);
             plotter.shearForce.plot(shearForceData);

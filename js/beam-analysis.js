@@ -110,26 +110,51 @@ BeamAnalysis.analyzer.simplySupported = class {
         this.load = load;
     }
     getDeflectionEquation(beam, load) {
+
+        const L = beam.primarySpan;
+        const EI = beam.material.properties.EI / 1000000000;
+
+        const j2 = beam.j2 || 1;
+
         return function (x) {
+
+            let y =
+                -((load * x) / (24 * EI)) *
+                (
+                    Math.pow(L, 3)
+                    - (2 * L * Math.pow(x, 2))
+                    + Math.pow(x, 3)
+                ) *
+                j2 *
+                1000;
+
             return {
                 x: x,
-                y: null
+                y: y
             };
         };
     }
     getBendingMomentEquation(beam, load) {
+        const L = beam.primarySpan;
+
         return function (x) {
+            
+            let y = ( load * x * (L - x)) / 2;
             return {
                 x: x,
-                y: null
+                y: y
             };
         };
     }
+
     getShearForceEquation(beam, load) {
+        const L = beam.primarySpan;
         return function (x) {
+            let y = load * ((L / 2) - x);
+
             return {
                 x: x,
-                y: null
+                y: y
             };
         };
     }
@@ -147,28 +172,236 @@ BeamAnalysis.analyzer.twoSpanUnequal = class {
         this.beam = beam;
         this.load = load;
     }
+    getReactions(beam, load) {
+
+        const L1 = beam.primarySpan;
+        const L2 = beam.secondarySpan;
+
+        // Internal support moment
+        const Mi =
+            -(
+                (load * Math.pow(L1, 3)) +
+                (load * Math.pow(L2, 3))
+            ) /
+            (
+                8 * (L1 + L2)
+            );
+
+        // Reactions
+        const R1 =
+            (Mi / L1) +
+            ((load * L1) / 2);
+
+        const R3 =
+            (Mi / L2) +
+            ((load * L2) / 2);
+
+        const R2 =
+            (load * L1) +
+            (load * L2) -
+            R1 -
+            R3;
+
+        return {
+            Mi,
+            R1,
+            R2,
+            R3
+        };
+    }
     getDeflectionEquation(beam, load) {
+
+        // =====================================================
+        // Beam Data
+        // =====================================================
+
+        const L1 =
+            beam.primarySpan;
+
+        const L2 =
+            beam.secondarySpan;
+
+        const L = L1 + L2;
+
+        const EI =
+            beam.material.properties.EI / 1000000000;
+
+        const j2 =
+            beam.j2 || 1;
+
+        // =====================================================
+        // Reactions
+        // =====================================================
+
+        const reaction =
+            this.getReactions(beam, load);
+
+        const R1 =
+            reaction.R1;
+
+        const R2 =
+            reaction.R2;
+
+        // =====================================================
+        // S1
+        // 0 <= x <= L1
+        // =====================================================
+        function S1(x) {
+
+            return (
+                x * (
+                        (4 * R1 * Math.pow(x, 2)) 
+                        - 
+                        (load * Math.pow(x, 3)) 
+                        +
+                        (load * Math.pow(L1, 3)) 
+                        - 
+                        (4 * R1 * Math.pow(L1, 2))
+                    )
+            ) / (24 * EI) * 1000 * j2;
+        }
+        // =====================================================
+        // S2
+        // L1 <= x <= L
+        // =====================================================
+        function S2(x) {
+            return (
+                        (
+                            (R1 * x / 6) *
+                            (
+                                Math.pow(x, 2)
+                                - Math.pow(L1, 2)
+                            )
+                        )
+                        +
+                        (
+                            (R2 * x / 6) *
+                            (
+                                Math.pow(x, 2)
+                                - (3 * L1 * x)
+                                + (3 * Math.pow(L1, 2))
+                            )
+                        )
+                        -
+                        (
+                            R2 * Math.pow(L1, 3) / 6
+                        )
+                        -
+                        (
+                            (load * x / 24) *
+                            (
+                                Math.pow(x, 3)
+                                - Math.pow(L1, 3)
+                            )
+                        )
+                    )
+                    * (1 / EI)
+                    * 1000 * j2;
+        }
+        // const correction = S1(L1) - S2(L1);
+        // =====================================================
+        // Return Function
+        // =====================================================
         return function (x) {
+            let y = 0;
+            // =================================================
+            // Left Span
+            // =================================================
+            if (x >= 0 && x <= L1) {
+                y = S1(x);
+            }
+            // =================================================
+            // Right Span
+            // =================================================
+            else if (x > L1 && x <= L) {
+                y = S2(x);
+            }
+            // =================================================
+            // Convert to mm
+            // =================================================
+            
             return {
                 x: x,
-                y: null
+                y: y
             };
         };
     }
+
     getBendingMomentEquation(beam, load) {
-        return function (x) {
-            return {
-                x: x,
-                y: null
-            };
+
+    const L1 = beam.primarySpan;
+
+    const reaction =
+        this.getReactions(beam, load);
+
+    const R1 = reaction.R1;
+    const R2 = reaction.R2;
+
+    return function (x) {
+
+        let y = 0;
+
+        if (x <= L1) {
+
+            y =
+                (R1 * x) -
+                (
+                    load *
+                    Math.pow(x, 2)
+                ) / 2;
+
+        } else {
+
+            y =
+                (R1 * x) +
+                (
+                    R2 *
+                    (x - L1)
+                ) -
+                (
+                    load *
+                    Math.pow(x, 2)
+                ) / 2;
+        }
+
+        return {
+            x: x,
+            y: y
         };
-    }
+    };
+}
     getShearForceEquation(beam, load) {
-        return function (x) {
-            return {
-                x: x,
-                y: null
-            };
+
+    const L1 = beam.primarySpan;
+
+    const reaction =
+        this.getReactions(beam, load);
+
+    const R1 = reaction.R1;
+    const R2 = reaction.R2;
+
+    return function (x) {
+
+        let y = 0;
+
+        if (x < L1) {
+
+            y =
+                R1 -
+                (load * x);
+
+        } else {
+
+            y =
+                R1 +
+                R2 -
+                (load * x);
+        }
+
+        return {
+            x: x,
+            y: y
         };
-    }
+    };
+}
 };
